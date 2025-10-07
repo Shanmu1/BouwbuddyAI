@@ -1,0 +1,646 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full bg-gray-50">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BouwBuddy AI - Manager Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- jsPDF library for PDF generation -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        .modal { display: none; }
+        .modal.active { display: flex; }
+        .nav-button.active {
+            background-color: #4338CA; /* indigo-700 */
+            color: white;
+        }
+        #report-content {
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+        /* Style for problem updates */
+        .problem-update {
+            border-left: 4px solid #DC2626; /* red-600 */
+            background-color: #FEF2F2; /* red-50 */
+        }
+    </style>
+</head>
+<body class="h-full">
+
+    <!-- Login Section -->
+    <div id="login-section" class="flex min-h-full flex-col justify-center px-6 py-12 lg:px-8">
+        <div class="sm:mx-auto sm:w-full sm:max-w-sm">
+            <h2 class="mt-10 text-center text-3xl font-bold leading-9 tracking-tight text-gray-900">BouwBuddy AI</h2>
+            <p class="mt-2 text-center text-sm text-gray-600">Manager Dashboard</p>
+        </div>
+        <div class="mt-10 sm:mx-auto sm:w-full sm:max-w-sm">
+            <div class="bg-white px-6 py-8 shadow-md rounded-xl">
+                <div id="login-error" class="hidden bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-lg relative mb-4" role="alert">
+                    <strong class="font-bold">Fout:</strong>
+                    <span class="block sm:inline" id="login-error-message"></span>
+                </div>
+                <form id="login-form" class="space-y-6">
+                    <div>
+                        <label for="email" class="block text-sm font-medium leading-6 text-gray-900">E-mailadres</label>
+                        <div class="mt-2">
+                            <input id="email" name="email" type="email" autocomplete="email" required class="block w-full rounded-md border-0 py-2.5 px-3 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6">
+                        </div>
+                    </div>
+                    <div>
+                        <label for="password" class="block text-sm font-medium leading-6 text-gray-900">Wachtwoord</label>
+                        <div class="mt-2">
+                            <input id="password" name="password" type="password" autocomplete="current-password" required class="block w-full rounded-md border-0 py-2.5 px-3 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6">
+                        </div>
+                    </div>
+                    <div>
+                        <button type="submit" id="login-button" class="flex w-full justify-center rounded-md bg-indigo-600 px-3 py-2.5 text-sm font-semibold leading-6 text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 disabled:bg-indigo-400">Inloggen</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Dashboard Section (Hidden by default) -->
+    <div id="dashboard-section" class="hidden">
+        <nav class="bg-indigo-600">
+             <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+                <div class="flex h-16 items-center justify-between">
+                    <div class="flex items-center">
+                        <div class="text-white font-bold text-xl">BouwBuddy AI</div>
+                    </div>
+                    <div class="flex items-center space-x-4">
+                        <button id="hard-refresh-button" type="button" class="rounded-md bg-red-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-red-500">Forceer Herstart</button>
+                        <button id="logout-button" type="button" class="rounded-md bg-indigo-700 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-600">Uitloggen</button>
+                    </div>
+                </div>
+            </div>
+        </nav>
+        <header class="bg-white shadow-sm">
+            <div class="mx-auto max-w-7xl px-4 py-4 sm:px-6 lg:px-8">
+                 <div class="flex justify-between items-center">
+                    <div>
+                        <h1 id="company-name-header" class="text-xl font-bold tracking-tight text-gray-900">Laden...</h1>
+                        <div class="mt-2">
+                            <button id="nav-projects" class="nav-button rounded-md px-3 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-200 active">Projecten</button>
+                            <button id="nav-users" class="nav-button rounded-md px-3 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-200">Gebruikers</button>
+                        </div>
+                    </div>
+                    <div id="header-action-button-container">
+                        <button id="add-project-button" type="button" class="rounded-md bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500">+ Nieuw Project</button>
+                    </div>
+                </div>
+            </div>
+        </header>
+        <main class="mx-auto max-w-7xl py-6 sm:px-6 lg:px-8">
+            <div id="main-content">
+                <div id="projects-view">
+                     <div id="loading-spinner-projects" class="text-center"><p>Projecten laden...</p></div>
+                    <div id="projects-grid" class="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 hidden"></div>
+                </div>
+                <div id="updates-view" class="hidden">
+                    <button id="back-to-projects" class="mb-6 rounded-md bg-gray-200 px-3 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-300">&larr; Terug naar projecten</button>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                        <div class="bg-white p-6 rounded-xl shadow-md">
+                            <h2 id="updates-header" class="text-2xl font-bold mb-4">Rapportages & Filters</h2>
+                            <div class="border-b pb-6 mb-6">
+                                 <h3 class="text-lg font-semibold mb-3">Dagrapport</h3>
+                                <div class="flex items-center space-x-3">
+                                    <input type="date" id="report-date-picker" class="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm">
+                                    <button id="daily-tech-report" class="rounded-md bg-gray-700 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-gray-600 whitespace-nowrap">Technisch</button>
+                                    <button id="daily-client-report" class="rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 whitespace-nowrap">Klant</button>
+                                </div>
+                            </div>
+                            <div class="border-b pb-6 mb-6">
+                                <h3 class="text-lg font-semibold mb-3">Weekrapport</h3>
+                                <div class="flex items-center space-x-3">
+                                    <p class="text-sm text-gray-600 flex-grow">Genereer een rapport voor de huidige week.</p>
+                                    <button id="weekly-tech-report" class="rounded-md bg-gray-700 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-gray-600 whitespace-nowrap">Technisch</button>
+                                    <button id="weekly-client-report" class="rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 whitespace-nowrap">Klant</button>
+                                </div>
+                            </div>
+                            <div>
+                                <h3 class="text-lg font-semibold mb-3">Filters</h3>
+                                <div class="flex items-center space-x-3">
+                                    <button id="filter-all" class="rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500">Toon Alles</button>
+                                    <button id="filter-problems" class="rounded-md bg-red-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-red-500">Toon Alleen Problemen</button>
+                                </div>
+                            </div>
+                        </div>
+                        <div id="updates-list-container">
+                            <h3 class="text-lg font-semibold mb-3">Recente Updates</h3>
+                            <div id="updates-list" class="space-y-4 max-h-[600px] overflow-y-auto pr-2"></div>
+                        </div>
+                    </div>
+                </div>
+                <div id="users-view" class="hidden">
+                    <div id="loading-spinner-users" class="text-center"><p>Gebruikers laden...</p></div>
+                    <div id="users-content" class="hidden">
+                         <div class="bg-white p-6 rounded-xl shadow-md mb-6">
+                            <h3 class="font-bold text-lg text-gray-800">Uitnodigingscode</h3>
+                            <p class="text-sm text-gray-600 mt-1">Deel deze code met uw medewerkers.</p>
+                            <div class="mt-4 bg-gray-100 p-4 rounded-md text-center">
+                                <p id="invite-code" class="text-2xl font-mono font-bold text-indigo-600">Laden...</p>
+                            </div>
+                        </div>
+                        <h3 class="font-bold text-lg text-gray-800 mb-4">Geregistreerde Gebruikers</h3>
+                        <div id="users-table" class="bg-white p-6 rounded-xl shadow-md"></div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Modals -->
+    <div id="project-modal" class="modal fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full justify-center items-center">
+        <div class="relative mx-auto p-5 border w-full max-w-md shadow-lg rounded-xl bg-white">
+            <h3 class="text-lg leading-6 font-medium text-gray-900">Nieuw Project Toevoegen</h3>
+            <div class="mt-2 px-7 py-3">
+                <form id="project-form" class="space-y-4 text-left">
+                    <div>
+                        <label for="project-name" class="text-sm font-medium leading-6 text-gray-700">Projectnaam</label>
+                        <input type="text" id="project-name" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm">
+                    </div>
+                    <div>
+                        <label for="project-address" class="text-sm font-medium leading-6 text-gray-700">Adres / Locatie</label>
+                        <input type="text" id="project-address" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm">
+                    </div>
+                        <div>
+                        <label for="project-client" class="text-sm font-medium leading-6 text-gray-700">Opdrachtgever / Klant</label>
+                        <input type="text" id="project-client" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm">
+                    </div>
+                </form>
+            </div>
+            <div class="items-center px-4 py-3">
+                <button id="cancel-project-button" class="px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300 mr-2">Annuleren</button>
+                <button id="save-project-button" type="submit" form="project-form" class="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-500">Project Opslaan</button>
+            </div>
+        </div>
+    </div>
+    <div id="report-modal" class="modal fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full justify-center items-center p-4">
+        <div class="relative mx-auto p-5 border w-full max-w-2xl shadow-lg rounded-xl bg-white">
+            <h3 id="report-title" class="text-lg leading-6 font-medium text-gray-900">Rapport Genereren...</h3>
+            <div id="report-content" class="mt-4 p-4 bg-gray-50 rounded-md max-h-96 overflow-y-auto text-sm"></div>
+            <div id="report-actions" class="mt-4 text-right space-x-2">
+                <button id="download-pdf-button" class="hidden px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-500">Download PDF</button>
+                <button id="close-report-button" class="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-500">Sluiten</button>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        // Firebase Config and Gemini Key
+        const firebaseConfig = {
+            apiKey: "AIzaSyDxVaQ2i8cmJAFB6I8uyiL8esKMC_DVkeE",
+            authDomain: "bouwbuddyai-db.firebaseapp.com",
+            projectId: "bouwbuddyai-db",
+            storageBucket: "bouwbuddyai-db.firebasestorage.app",
+            messagingSenderId: "659199684039",
+            appId: "1:659199684039:web:00dbdc879e6545d2113de2",
+            measurementId: "G-HLJWJR6P6V"
+        };
+        const GEMINI_API_KEY = "AIzaSyAAPd_4vrTO8EmN8izbW0IuDhMizBIwb2g";
+
+        // Import Firebase modules
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+        import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+        import { getFirestore, collection, getDocs, doc, getDoc, addDoc, query, orderBy, where, Timestamp, updateDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+        
+        // Initialize Firebase
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+        
+        // DOM Elements (All now correctly defined)
+        const loginSection = document.getElementById('login-section');
+        const dashboardSection = document.getElementById('dashboard-section');
+        const loginForm = document.getElementById('login-form');
+        const loginErrorEl = document.getElementById('login-error');
+        const loginErrorMessage = document.getElementById('login-error-message');
+        const loginButton = document.getElementById('login-button');
+        const logoutButton = document.getElementById('logout-button');
+        const hardRefreshButton = document.getElementById('hard-refresh-button');
+        const companyNameHeader = document.getElementById('company-name-header');
+        const navProjects = document.getElementById('nav-projects');
+        const navUsers = document.getElementById('nav-users');
+        const projectsView = document.getElementById('projects-view');
+        const updatesView = document.getElementById('updates-view');
+        const usersView = document.getElementById('users-view');
+        const projectsGrid = document.getElementById('projects-grid');
+        const addProjectButton = document.getElementById('add-project-button');
+        const backToProjects = document.getElementById('back-to-projects');
+        const updatesHeader = document.getElementById('updates-header');
+        const updatesList = document.getElementById('updates-list');
+        const reportDatePicker = document.getElementById('report-date-picker');
+        const dailyTechReportBtn = document.getElementById('daily-tech-report');
+        const dailyClientReportBtn = document.getElementById('daily-client-report');
+        const weeklyTechReportBtn = document.getElementById('weekly-tech-report');
+        const weeklyClientReportBtn = document.getElementById('weekly-client-report');
+        const usersContent = document.getElementById('users-content');
+        const inviteCodeEl = document.getElementById('invite-code');
+        const usersTable = document.getElementById('users-table');
+        const projectModal = document.getElementById('project-modal');
+        const projectForm = document.getElementById('project-form');
+        const cancelProjectButton = document.getElementById('cancel-project-button');
+        const saveProjectButton = document.getElementById('save-project-button');
+        const reportModal = document.getElementById('report-modal');
+        const reportTitle = document.getElementById('report-title');
+        const reportContent = document.getElementById('report-content');
+        const downloadPdfButton = document.getElementById('download-pdf-button');
+        const closeReportButton = document.getElementById('close-report-button');
+        const filterAllBtn = document.getElementById('filter-all');
+        const filterProblemsBtn = document.getElementById('filter-problems');
+
+        let allUpdatesCache = [];
+        let currentCompanyId = null;
+        let currentCompanyData = null;
+        let currentProjectId = null;
+        let currentProjectName = null; 
+        let lastGeneratedReport = { text: '', updates: [], period: 'dag', type: 'technisch' };
+
+        // --- Navigation ---
+        function showView(viewName) {
+            [projectsView, updatesView, usersView].forEach(v => v.classList.add('hidden'));
+            [navProjects, navUsers].forEach(b => b.classList.remove('active'));
+            const targetView = document.getElementById(`${viewName}-view`);
+            const targetNav = document.getElementById(`nav-${viewName}`);
+            if (targetView) targetView.classList.remove('hidden');
+            if (targetNav) targetNav.classList.add('active');
+            if (viewName === 'users') loadUsers();
+            if (viewName === 'updates') {
+                reportDatePicker.valueAsDate = new Date();
+            }
+        }
+        navProjects.addEventListener('click', () => showView('projects'));
+        navUsers.addEventListener('click', () => showView('users'));
+        backToProjects.addEventListener('click', () => showView('projects'));
+
+        // --- Authentication & Setup ---
+        onAuthStateChanged(auth, async (user) => {
+            if (user) {
+                await setupDashboard(user);
+            } else {
+                loginSection.classList.remove('hidden');
+                dashboardSection.classList.add('hidden');
+            }
+        });
+        
+        loginForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            loginErrorEl.classList.add('hidden');
+            loginButton.disabled = true;
+            loginButton.textContent = "Inloggen...";
+            try {
+                await signInWithEmailAndPassword(auth, loginForm.email.value, loginForm.password.value);
+            } catch (err) {
+                loginErrorMessage.textContent = "E-mail of wachtwoord onjuist.";
+                loginErrorEl.classList.remove('hidden');
+            } finally {
+                loginButton.disabled = false;
+                loginButton.textContent = "Inloggen";
+            }
+        });
+
+        logoutButton.addEventListener('click', () => signOut(auth));
+        hardRefreshButton.addEventListener('click', () => { 
+             signOut(auth).then(() => {
+                sessionStorage.clear();
+                localStorage.clear();
+                window.location.reload(true);
+            });
+        });
+        
+        function displayCouplingError(user, customMessage = null) {
+            companyNameHeader.textContent = "Geen bedrijf gekoppeld";
+            projectsGrid.innerHTML = `<div class="col-span-full text-center bg-red-100 p-4 rounded-lg"><h3 class="font-bold text-lg">Koppeling Mislukt</h3><p class="mt-2">${customMessage || 'Geen bedrijfsaccount gekoppeld.'}</p></div>`;
+        }
+        
+        async function setupDashboard(user) {
+            try {
+                if (!user || !user.uid) return;
+                const managerDocRef = doc(db, "Manager", user.uid);
+                const managerDoc = await getDoc(managerDocRef);
+                if (managerDoc.exists()) {
+                    currentCompanyId = managerDoc.data().companyId;
+                    if (!currentCompanyId) {
+                        displayCouplingError(user, "Het 'companyId' veld ontbreekt in uw Manager document.");
+                        return;
+                    }
+                    const companyDocRef = doc(db, "companies", currentCompanyId);
+                    const companyDoc = await getDoc(companyDocRef);
+                    if (companyDoc.exists()) {
+                        currentCompanyData = companyDoc.data();
+                        companyNameHeader.textContent = currentCompanyData.name;
+                        loginSection.classList.add('hidden');
+                        dashboardSection.classList.remove('hidden');
+                        showView('projects');
+                        await loadProjects();
+                    } else {
+                         displayCouplingError(user, `Bedrijfsdocument met ID '${currentCompanyId}' niet gevonden.`);
+                    }
+                } else {
+                    displayCouplingError(user, "Manager document niet gevonden. Controleer de ID in de 'Manager' collectie."); 
+                }
+            } catch (error) {
+                console.error("Error in setupDashboard:", error);
+                displayCouplingError(user, `Onverwachte fout: ${error.message}.`);
+            }
+        }
+        
+        // --- Data Loading & Display ---
+        async function loadProjects() {
+            if (!currentCompanyId) return;
+            const loadingSpinner = document.getElementById('loading-spinner-projects');
+            const projectsGrid = document.getElementById('projects-grid');
+            loadingSpinner.classList.remove('hidden');
+            projectsGrid.classList.add('hidden');
+
+            const loadingTimeout = setTimeout(() => {
+                loadingSpinner.classList.add('hidden');
+                projectsGrid.classList.remove('hidden');
+                projectsGrid.innerHTML = `<div class="col-span-full text-center bg-yellow-100 p-4 rounded-lg"><p class="font-bold text-yellow-800">Laden duurt lang...</p><p class="text-sm text-yellow-700 mt-1">Dit wordt meestal veroorzaakt door verlopen of incorrecte beveiligingsregels in Firebase.</p><p class="text-sm text-yellow-700 mt-1">Controleer alstublieft uw 'Firestore Database' -> 'Rules' tabblad in de Firebase Console.</p></div>`;
+            }, 10000);
+
+            try {
+                const projectsCollection = collection(db, "companies", currentCompanyId, "projects");
+                const projectsSnapshot = await getDocs(projectsCollection);
+                clearTimeout(loadingTimeout); 
+                loadingSpinner.classList.add('hidden');
+                projectsGrid.classList.remove('hidden');
+                projectsGrid.innerHTML = '';
+
+                if (projectsSnapshot.empty) {
+                    projectsGrid.innerHTML = '<p class="text-gray-500 col-span-full text-center">Nog geen projecten aangemaakt. Klik op "+ Nieuw Project" om te beginnen.</p>';
+                    return;
+                }
+
+                projectsSnapshot.forEach(doc => {
+                    const project = doc.data();
+                    const card = document.createElement('div');
+                    card.className = "project-card bg-white p-6 rounded-xl shadow-md hover:shadow-lg transition-shadow cursor-pointer";
+                    card.dataset.projectId = doc.id;
+                    card.dataset.projectName = project.name;
+                    card.innerHTML = `<h3 class="font-bold text-lg text-gray-800">${project.name}</h3><p class="text-sm text-gray-600 mt-1">${project.address || 'Geen adres'}</p>`;
+                    card.addEventListener('click', () => showUpdatesForProject(card.dataset.projectId, card.dataset.projectName));
+                    projectsGrid.appendChild(card);
+                });
+            } catch (error) {
+                clearTimeout(loadingTimeout);
+                console.error("Error loading projects:", error);
+                loadingSpinner.classList.add('hidden');
+                projectsGrid.classList.remove('hidden');
+                projectsGrid.innerHTML = `<div class="col-span-full text-center bg-red-100 p-4 rounded-lg"><p class="font-bold text-red-700">Fout bij laden van projecten.</p><p class="text-sm text-red-600 mt-1">${error.message}</p><p class="text-sm text-red-600 mt-1">Controleer uw Firestore 'Rules' en databasestructuur.</p></div>`;
+            }
+        }
+        
+        async function loadUsers() {
+            if (!currentCompanyId) return;
+            const usersTable = document.getElementById('users-table');
+            usersTable.innerHTML = '<p>Gebruikers laden...</p>';
+            inviteCodeEl.textContent = currentCompanyId;
+            const usersQuery = query(collection(db, "users"), where("company_id", "==", currentCompanyId));
+            const usersSnapshot = await getDocs(usersQuery);
+            usersTable.innerHTML = '';
+            if(usersSnapshot.empty){
+                usersTable.innerHTML = '<p class="text-gray-500">Nog geen gebruikers geregistreerd.</p>';
+                return;
+            }
+            const table = document.createElement('table');
+            table.className = 'min-w-full divide-y divide-gray-200';
+            table.innerHTML = `<thead class="bg-gray-50"><tr><th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Naam</th><th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Geregistreerd op</th></tr></thead><tbody class="bg-white divide-y divide-gray-200"></tbody>`;
+            const tbody = table.querySelector('tbody');
+            usersSnapshot.forEach(doc => {
+                const user = doc.data();
+                const registeredAt = user.registered_at?.toDate().toLocaleDateString('nl-NL') || 'Onbekend';
+                tbody.innerHTML += `<tr><td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${user.first_name}</td><td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${registeredAt}</td></tr>`;
+            });
+            usersTable.appendChild(table);
+        }
+
+        async function showUpdatesForProject(projectId, projectName) {
+            currentProjectId = projectId;
+            currentProjectName = projectName; 
+            showView('updates');
+            updatesHeader.textContent = `Rapportages voor ${projectName}`;
+            updatesList.innerHTML = `<p>Updates laden...</p>`;
+            try {
+                const updatesQuery = query(collection(db, "companies", currentCompanyId, "projects", projectId, "updates"), orderBy("timestamp", "desc"));
+                const updatesSnapshot = await getDocs(updatesQuery);
+                allUpdatesCache = updatesSnapshot.docs.map(doc => doc.data());
+                renderUpdates(allUpdatesCache);
+            } catch (error) {
+                console.error("Error loading updates:", error);
+                updatesList.innerHTML = '<p class="text-red-500 text-center">Fout bij het laden van updates.</p>';
+            }
+        }
+
+        function renderUpdates(updatesToRender) {
+            updatesList.innerHTML = '';
+            if (updatesToRender.length === 0) {
+                updatesList.innerHTML = '<p class="text-gray-500 text-center">Geen updates gevonden.</p>';
+                return;
+            }
+            updatesToRender.forEach(update => {
+                const timestamp = update.timestamp?.toDate ? update.timestamp.toDate().toLocaleString('nl-NL') : 'Onbekende datum';
+                const card = document.createElement('div');
+                const isProblem = update.type === 'probleem';
+                card.className = `bg-white p-5 rounded-xl shadow-sm ${isProblem ? 'problem-update' : ''}`;
+                let imageHtml = update.image_url ? `<img src="${update.image_url}" alt="Projectfoto" class="mt-4 rounded-lg w-full h-auto max-w-sm mx-auto">` : '';
+                const title = isProblem ? `PROBLEEM: ${update.name || 'Onbekend'}` : (update.name || 'Onbekende Medewerker');
+                const taskLabel = isProblem ? 'Omschrijving' : 'Taak';
+                card.innerHTML = `<div class="flex justify-between items-center"><p class="font-semibold ${isProblem ? 'text-red-700' : 'text-gray-800'}">${title}</p><p class="text-xs text-gray-500">${timestamp}</p></div><div class="mt-4 prose prose-sm max-w-none"><p><strong>${taskLabel}:</strong> ${update.task || ''}</p>${!isProblem ? `<p><strong>Planning:</strong> ${update.planning || ''}</p>` : ''}</div>${imageHtml}`;
+                updatesList.appendChild(card);
+            });
+        }
+
+        filterAllBtn.addEventListener('click', () => renderUpdates(allUpdatesCache));
+        filterProblemsBtn.addEventListener('click', () => {
+            const problemUpdates = allUpdatesCache.filter(update => update.type === 'probleem');
+            renderUpdates(problemUpdates);
+        });
+
+        // --- Report Generation Logic ---
+        dailyTechReportBtn.addEventListener('click', () => handleReportGeneration('daily', 'technical'));
+        dailyClientReportBtn.addEventListener('click', () => handleReportGeneration('daily', 'client'));
+        weeklyTechReportBtn.addEventListener('click', () => handleReportGeneration('weekly', 'technical'));
+        weeklyClientReportBtn.addEventListener('click', () => handleReportGeneration('weekly', 'client'));
+        closeReportButton.addEventListener('click', () => reportModal.classList.remove('active'));
+        downloadPdfButton.addEventListener('click', generatePdfReport);
+
+        async function handleReportGeneration(period, reportType) {
+            if (!currentProjectId || !currentCompanyId || !GEMINI_API_KEY) {
+                reportModal.classList.add('active');
+                reportTitle.textContent = "Configuratiefout";
+                reportContent.textContent = "Project niet geselecteerd of Gemini API sleutel ontbreekt.";
+                return;
+            }
+            reportModal.classList.add('active');
+            downloadPdfButton.classList.add('hidden');
+            reportTitle.textContent = "Rapport Genereren...";
+            reportContent.textContent = 'Updates ophalen...';
+            try {
+                let startDate, endDate;
+                if (period === 'daily') {
+                    startDate = new Date(reportDatePicker.value);
+                    startDate.setHours(0, 0, 0, 0);
+                    endDate = new Date(startDate);
+                    endDate.setHours(23, 59, 59, 999);
+                } else {
+                    const today = new Date();
+                    const dayOfWeek = today.getDay();
+                    startDate = new Date(today.setDate(today.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1)));
+                    startDate.setHours(0, 0, 0, 0);
+                }
+                
+                const updatesQuery = period === 'daily'
+                    ? query(collection(db, "companies", currentCompanyId, "projects", currentProjectId, "updates"), where("timestamp", ">=", Timestamp.fromDate(startDate)), where("timestamp", "<=", Timestamp.fromDate(endDate)))
+                    : query(collection(db, "companies", currentCompanyId, "projects", currentProjectId, "updates"), where("timestamp", ">=", Timestamp.fromDate(startDate)));
+                
+                const updatesSnapshot = await getDocs(updatesQuery);
+                const updates = updatesSnapshot.docs.map(doc => doc.data());
+
+                if (updates.length === 0) {
+                    reportContent.textContent = `Geen updates gevonden voor deze ${period}.`;
+                    return;
+                }
+
+                reportContent.textContent = 'AI-rapport wordt gegenereerd...';
+                const aiResponse = await callGeminiForReport(updates, reportType);
+                const cleanedResponse = cleanupMarkdown(aiResponse);
+                lastGeneratedReport = { text: cleanedResponse, updates, period, type: reportType };
+                reportTitle.textContent = `${reportType === 'technical' ? 'Technisch' : 'Klant'} ${period === 'daily' ? 'Dag' : 'Week'}rapport`;
+                reportContent.textContent = cleanedResponse;
+                downloadPdfButton.classList.remove('hidden');
+
+            } catch (error) {
+                console.error("Error generating report:", error);
+                reportContent.textContent = `Fout: ${error.message}`;
+            }
+        }
+        
+        function cleanupMarkdown(text) {
+            if (!text) return '';
+            let cleanedText = text.replace(/#{1,6}\s/g, '');
+            cleanedText = cleanedText.replace(/[\*_]/g, '');
+            const lines = cleanedText.split('\n');
+            const processedLines = lines.map(line => {
+                if (line.match(/\| :--- \|/)) return null;
+                return line.replace(/\|/g, '  ').trim();
+            }).filter(line => line !== null);
+            return processedLines.join('\n');
+        }
+        async function callGeminiForReport(updates, reportType) {
+            const model_name = "gemini-flash-latest";
+            const url = `https://generativelanguage.googleapis.com/v1beta/models/${model_name}:generateContent?key=${GEMINI_API_KEY}`;
+            const headers = { "Content-Type": "application/json" };
+            const technicalInstruction = "Jij bent BouwBuddy AI, een expert in bouwmanagement. Jouw taak is om een gedetailleerd, technisch rapport te schrijven voor de opzichter. Analyseer de tekst en de foto's. Gebruik vakjargon. Beschrijf de voortgang, identificeer risico's en benoem wat je op de foto's ziet. Gebruik GEEN Markdown opmaak zoals asterisken, hekjes of tabellen.";
+            const clientInstruction = "Jij bent BouwBuddy AI. Schrijf een korte, vriendelijke en positieve samenvatting voor de klant. Vermijd technisch jargon en focus op de zichtbare vooruitgang. Gebruik GEEN Markdown opmaak.";
+            const selectedInstruction = reportType === 'technical' ? technicalInstruction : clientInstruction;
+            let updates_text = "Genereer het gevraagde rapport op basis van de volgende updates en de bijbehorende foto's:\n\n";
+            const image_parts = [];
+            for(const up of updates) {
+                updates_text += `- Persoon: ${up.name || 'N/A'}\n  Taak: ${up.task || ''}\n`;
+                if (up.image_url) {
+                    updates_text += "  Foto bijgevoegd.\n\n";
+                    try {
+                        const base64_image = await loadImageAsBase64(up.image_url);
+                        if (base64_image) {
+                            image_parts.push({"inline_data": {"mime_type": "image/jpeg", "data": base64_image}});
+                        }
+                    } catch(e) { console.error("Failed to process image for AI:", e); }
+                } else {
+                    updates_text += "\n";
+                }
+            }
+            const parts = [{ "text": updates_text }, ...image_parts];
+            const data = { "contents": [{ "parts": parts }], "system_instruction": { "parts": [{ "text": selectedInstruction }] } };
+            const response = await fetch(url, { method: 'POST', headers, body: JSON.stringify(data) });
+            if (!response.ok) {
+                const errorBody = await response.text();
+                throw new Error(`API call failed: ${response.status} ${errorBody}`);
+            }
+            const response_json = await response.json();
+            return response_json.candidates[0].content.parts[0].text;
+        }
+        async function generatePdfReport() {
+            if (!lastGeneratedReport.text) return;
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+            const { text: reportText, updates, period, type } = lastGeneratedReport;
+            const updatesWithImages = updates.filter(u => u.image_url);
+            const today = new Date().toLocaleDateString('nl-NL');
+            const periodText = period === 'daily' ? 'Dag' : 'Week';
+            const typeText = type === 'technical' ? 'Technisch' : 'Klant';
+            const pageHeight = doc.internal.pageSize.height;
+            let yPos = 20;
+
+            doc.setFontSize(18);
+            doc.text(`${typeText} ${periodText}rapport: ${currentProjectName}`, 15, yPos);
+            yPos += 8;
+            doc.setFontSize(12);
+            doc.setTextColor(100);
+            doc.text(`Rapport gegenereerd op: ${today}`, 15, yPos);
+            yPos += 15;
+
+            doc.setFontSize(11);
+            doc.setTextColor(0);
+            const splitText = doc.splitTextToSize(reportText, 180);
+            doc.text(splitText, 15, yPos);
+            yPos += (splitText.length * 5) + 10;
+
+            if (updatesWithImages.length > 0) {
+                if (yPos > pageHeight - 40) { doc.addPage(); yPos = 20; }
+                doc.setFontSize(16);
+                doc.text("Bijgevoegde Foto's", 15, yPos);
+                yPos += 15;
+                for (const update of updatesWithImages) {
+                    if (yPos > pageHeight - 80) { doc.addPage(); yPos = 20; }
+                    try {
+                        const imgData = await loadImageAsBase64(update.image_url);
+                        if (imgData) {
+                            const updateTime = update.timestamp?.toDate().toLocaleString('nl-NL') || '';
+                            doc.setFontSize(10); doc.setTextColor(100);
+                            doc.text(`Foto van: ${update.name || 'Onbekend'} (${updateTime})`, 15, yPos);
+                            yPos += 5;
+                            doc.addImage(imgData, 'JPEG', 15, yPos, 120, 75);
+                            yPos += 85;
+                        }
+                    } catch(e) { console.error("Could not add image to PDF:", e); }
+                }
+            }
+            doc.save(`BouwBuddy-Rapport-${currentProjectName}-${today}.pdf`);
+        }
+        function loadImageAsBase64(url) {
+            return new Promise(async (resolve, reject) => {
+                if (!url) { return resolve(null); }
+                try {
+                    const response = await fetch(url);
+                    if (!response.ok) throw new Error(`Network response was not ok: ${response.statusText}`);
+                    const blob = await response.blob();
+                    const reader = new FileReader();
+                    reader.onload = () => resolve(reader.result.split(',')[1]);
+                    reader.onerror = (error) => reject(error);
+                    reader.readAsDataURL(blob);
+                } catch (error) {
+                    console.error(`Failed to load image from ${url}:`, error);
+                    reject(error);
+                }
+            });
+        }
+        
+        // --- Add Project Modal Logic ---
+        addProjectButton.addEventListener('click', () => projectModal.classList.add('active'));
+        cancelProjectButton.addEventListener('click', () => { projectModal.classList.remove('active'); projectForm.reset(); });
+        projectForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            if (!currentCompanyId) return;
+            const newProject = { name: projectForm['project-name'].value, address: projectForm['project-address'].value, client: projectForm['project-client'].value, status: 'actief', createdAt: Timestamp.now() };
+            await addDoc(collection(db, "companies", currentCompanyId, "projects"), newProject);
+            projectModal.classList.remove('active');
+            projectForm.reset();
+            loadProjects();
+        });
+    </script>
+</body>
+</html>
